@@ -60,7 +60,7 @@ data "aws_iam_policy_document" "policy_doc" {
       "kms:Decrypt",
       "kms:GenerateDataKey"
     ]
-    resources = [aws_kms_key.kms_key.arn]
+    resources = [data.aws_kms_alias.key_alias.arn]
   }
 }
 

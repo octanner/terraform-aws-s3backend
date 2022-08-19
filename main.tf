@@ -1,13 +1,14 @@
 data "aws_region" "current" {}
 
-resource "random_string" "rand" {
-  length  = 24
-  special = false
-  upper   = false
-}
+#resource "random_string" "rand" {
+#  length  = 24
+#  special = false
+#  upper   = false
+#}
 
 locals {
-  namespace = substr(join("-", [var.namespace, random_string.rand.result]), 0, 24)
+#  namespace = substr(join("-", [var.namespace, random_string.rand.result]), 0, 24)
+  namespace = var.namespace
 }
 
 resource "aws_resourcegroups_group" "resourcegroups_group" {
@@ -30,28 +31,39 @@ resource "aws_resourcegroups_group" "resourcegroups_group" {
   }
 }
 
-resource "aws_kms_key" "kms_key" {
-  tags = {
-    ResourceGroup = local.namespace
+#resource "aws_kms_key" "kms_key" {
+#  tags = {
+#    ResourceGroup = local.namespace
+#  }
+#}
+#
+#
+data "aws_kms_alias" "key_alias" {
+  name = "alias/us-west-2/cloudhsm/s3/tf"
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "s3_encryption" {
+  bucket = aws_s3_bucket.s3_bucket.bucket
+
+  rule {
+    apply_server_side_encryption_by_default {
+#      kms_master_key_id = aws_kms_key.kms_key.arn
+      kms_master_key_id = data.aws_kms_alias.key_alias.arn
+      sse_algorithm     = "aws:kms"
+    }
+  }
+}
+
+resource "aws_s3_bucket_versioning" "s3_versioning" {
+  bucket = aws_s3_bucket.s3_bucket.id
+  versioning_configuration {
+    status = "Enabled"
   }
 }
 
 resource "aws_s3_bucket" "s3_bucket" {
-  bucket        = "${local.namespace}-state-bucket"
+  bucket        = "${local.namespace}-terraform-state"
   force_destroy = var.force_destroy_state
-
-  versioning {
-    enabled = true
-  }
-
-  server_side_encryption_configuration {
-    rule {
-      apply_server_side_encryption_by_default {
-        sse_algorithm     = "aws:kms"
-        kms_master_key_id = aws_kms_key.kms_key.arn
-      }
-    }
-  }
 
   tags = {
     ResourceGroup = local.namespace
